@@ -33,6 +33,18 @@ class ORMMetaBackend(MetaBackendBase):
         return self.model.objects.filter(path=path).exists()
 
 
+class MultipleORMMetaBackend(ORMMetaBackend):
+
+    def get_related(self, path):
+        try:
+            model_object = self._get(path=path)
+        except self.model.DoesNotExist as exc:
+            raise MetaBackendObjectDoesNotExist(exc)
+        else:
+            return model_object.copies.values_list('path',
+                                                         flat=True).all()
+
+
 class ProxyStorageModelBase(models.Model):
     path = models.CharField(max_length=255, unique=True)
     proxy_storage_name = models.CharField(max_length=50)
@@ -71,3 +83,31 @@ class OriginalStorageNameMixin(models.Model):
 
     class Meta:
         abstract = True
+
+
+class ProxyMultipleStorageModel(models.Model):
+    path = models.CharField(max_length=250)
+    proxy_storage_name = models.CharField(max_length=50)
+    original_storage_path = models.CharField(max_length=350)
+
+    original = models.ForeignKey('self', blank=True, related_name='copies',
+                                 null=True)
+
+    class Meta:
+        unique_together = (('path', 'proxy_storage_name'),)
+        abstract = True
+
+    def get_meta_backend_obj(self):
+        # todo: test me
+        return ORMMetaBackend(model=type(self)).get_meta_backend_obj(self)
+
+    def __unicode__(self):
+        meta_backend_obj = self.get_meta_backend_obj()
+        proxy_storage = meta_backend_obj.get_proxy_storage()
+        original_storage = meta_backend_obj.get_original_storage()
+        return u'{0} {1} => {2} {3}'.format(
+            type(proxy_storage).__name__,
+            self.path,
+            type(original_storage).__name__,
+            self.original_storage_path
+        )

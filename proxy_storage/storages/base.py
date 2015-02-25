@@ -3,8 +3,8 @@ from collections import OrderedDict
 
 from django.utils.encoding import force_text
 from django.core.files.storage import Storage
-
-from proxy_storage import utils
+from django_proxy_storage.proxy_storage import tasks
+from django_proxy_storage.proxy_storage import utils
 from proxy_storage.meta_backends.base import MetaBackendObjectDoesNotExist
 
 
@@ -123,3 +123,82 @@ class MultipleOriginalStoragesMixin(object):
             'original_storage_name': self.original_storages_dict_inversed[self.original_storage]
         })
         return data
+
+
+class MultipleProxyStorageBase(ProxyStorageBase):
+
+    def save(self, name, content, original_storage_path=None):
+        from proxy_storage import utils
+        from django.utils.encoding import force_text
+
+        name = self.get_available_name(
+            utils.clean_path(
+                self.get_original_storage_full_path(name)
+            )
+        )
+        # save file to original storage using the same name as path in the meta
+        if not original_storage_path:
+            original_storage_path = self.get_original_storage().save(name, content)
+
+        # Get the proper name for the file, as it will actually be saved to meta backend
+
+        # create meta backend info
+        self.meta_backend.create(data=self.get_data_for_meta_backend_save(
+            path=name,
+            original_storage_path=original_storage_path,
+            original_name=name,
+            content=content,
+        ))
+        return force_text(name)
+
+
+class MultipleStorageMixin(tasks.CeleryMixin):
+
+    original_meta = None
+
+    def save(self, name, content, original_storage_path=None, using=None):
+        self.original_meta = None
+        if using:
+            run_original_storages = [self.original_storages_dict[using]]
+        else:
+            run_original_storages = self.original_storages_dict.values()
+
+        original = None
+
+        for i, storage in enumerate(run_original_storages):
+            save_kwargs = {
+                'original_storage_path': original_storage_path,
+                'name': name,
+                'using': self.original_storages_dict_inversed[storage]
+            }
+
+            if i == 0:
+                original = super(MultipleStorageMixin, self).save(
+                    content=content, **save_kwargs
+                )
+                self.original_meta = self.meta_backend.get(path=original)
+            else:
+                self.save_delay.delay(path=original, **save_kwargs)
+
+        return original
+
+    def get_data_for_meta_backend_save(self, path, original_storage_path,
+                                       *args,
+                                       **kwargs):
+        data = super(MultipleStorageMixin, self).get_data_for_meta_backend_save(
+            path, original_storage_path, *args, **kwargs
+        )
+        if self.original_meta and self.original_meta.get('id'):
+            data.update(dict(original_id=self.original_meta['id']))
+        return data
+
+    def delete(self, name):
+        paths = [name]
+        try:
+            related = self.meta_backend.get_related(path=name)
+        except MetaBackendObjectDoesNotExist:
+            raise IOError("File not found: {0}".format(name))
+        else:
+            paths += related
+        for path in paths[::-1]:
+            self.delete_delay.delay(path)
