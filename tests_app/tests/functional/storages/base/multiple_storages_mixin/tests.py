@@ -4,16 +4,12 @@ from pymongo import MongoClient
 from django.test import TestCase
 from django.conf import settings
 
-from proxy_storage.meta_backends.orm import ORMMetaBackend
 from proxy_storage.meta_backends.orm import MultipleORMMetaBackend
-from proxy_storage.meta_backends.mongo import MongoMetaBackend
-from proxy_storage.storages.base import ProxyStorageBase, MultipleOriginalStoragesMixin
+from proxy_storage.storages.base import ProxyStorageBase, MultipleStoragesMixin
 from proxy_storage.testutils import create_test_cases_for_proxy_storage
 
 from tests_app.models import (
-    ProxyStorageModelWithOriginalStorageName,
     ProxyStorageModelMultiple,
-    ProxyStorageModelWithContentObjectFieldAndOriginalStorageName
 )
 from .base_test_cases import (
     PrepareMixin,
@@ -24,7 +20,7 @@ from .base_test_cases import (
 )
 
 
-class MultipleOriginalStoragesProxyStorage(MultipleOriginalStoragesMixin, ProxyStorageBase):
+class MultipleStoragesProxyStorage(MultipleStoragesMixin, ProxyStorageBase):
     pass
 
 
@@ -36,20 +32,14 @@ base_test_case_classes = [
 ]
 
 meta_backend_instances = [
-    ORMMetaBackend(model=ProxyStorageModelWithOriginalStorageName),
     MultipleORMMetaBackend(model=ProxyStorageModelMultiple),
-    ORMMetaBackend(model=ProxyStorageModelWithContentObjectFieldAndOriginalStorageName),
-    MongoMetaBackend(
-        database=MongoClient('localhost', settings.MONGO_DATABASE_PORT)[settings.MONGO_DATABASE_NAME],
-        collection=settings.MONGO_META_BACKEND_COLLECTION_NAME
-    )
 ]
 
 
 # test default behaviour of proxy storage with fallback
 locals().update(
     create_test_cases_for_proxy_storage(
-        MultipleOriginalStoragesProxyStorage,
+        MultipleStoragesProxyStorage,
         base_test_case_classes,
         meta_backend_instances
     )

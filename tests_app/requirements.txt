@@ -3,3 +3,4 @@ django-nose
 mock
 ipdb
 pymongo
+celery

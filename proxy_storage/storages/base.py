@@ -3,8 +3,7 @@ from collections import OrderedDict
 
 from django.utils.encoding import force_text
 from django.core.files.storage import Storage
-from django_proxy_storage.proxy_storage import tasks
-from django_proxy_storage.proxy_storage import utils
+from proxy_storage import utils
 from proxy_storage.meta_backends.base import MetaBackendObjectDoesNotExist
 
 
@@ -125,39 +124,12 @@ class MultipleOriginalStoragesMixin(object):
         return data
 
 
-class MultipleProxyStorageBase(ProxyStorageBase):
-
-    def save(self, name, content, original_storage_path=None):
-        from proxy_storage import utils
-        from django.utils.encoding import force_text
-
-        name = self.get_available_name(
-            utils.clean_path(
-                self.get_original_storage_full_path(name)
-            )
-        )
-        # save file to original storage using the same name as path in the meta
-        if not original_storage_path:
-            original_storage_path = self.get_original_storage().save(name, content)
-
-        # Get the proper name for the file, as it will actually be saved to meta backend
-
-        # create meta backend info
-        self.meta_backend.create(data=self.get_data_for_meta_backend_save(
-            path=name,
-            original_storage_path=original_storage_path,
-            original_name=name,
-            content=content,
-        ))
-        return force_text(name)
-
-
-class MultipleStorageMixin(tasks.CeleryMixin):
+class MultipleStoragesMixin(MultipleOriginalStoragesMixin):
 
     original_meta = None
+    is_celery = False
 
     def save(self, name, content, original_storage_path=None, using=None):
-        self.original_meta = None
         if using:
             run_original_storages = [self.original_storages_dict[using]]
         else:
@@ -173,22 +145,24 @@ class MultipleStorageMixin(tasks.CeleryMixin):
             }
 
             if i == 0:
-                original = super(MultipleStorageMixin, self).save(
+                original = super(MultipleStoragesMixin, self).save(
                     content=content, **save_kwargs
                 )
                 self.original_meta = self.meta_backend.get(path=original)
             else:
-                self.save_delay.delay(path=original, **save_kwargs)
+                self.run_save(path=original, **save_kwargs)
 
         return original
 
     def get_data_for_meta_backend_save(self, path, original_storage_path,
                                        *args,
                                        **kwargs):
-        data = super(MultipleStorageMixin, self).get_data_for_meta_backend_save(
+        data = super(MultipleStoragesMixin, self).get_data_for_meta_backend_save(
             path, original_storage_path, *args, **kwargs
         )
-        if self.original_meta and self.original_meta.get('id'):
+        if self.original_meta and self.meta_backend.exists(
+            self.original_meta.get('path')
+        ):
             data.update(dict(original_id=self.original_meta['id']))
         return data
 
@@ -200,5 +174,37 @@ class MultipleStorageMixin(tasks.CeleryMixin):
             raise IOError("File not found: {0}".format(name))
         else:
             paths += related
-        for path in paths[::-1]:
-            self.delete_delay.delay(path)
+
+        new_list = []
+
+        # get sorted unique list
+        for i in paths:
+            if i not in new_list:
+                new_list.append(i)
+
+        for path in new_list[::-1]:
+            self.run_delete(path)
+
+    def run_save(self, path, name, original_storage_path, using,
+                 not_assync=False):
+
+        if not not_assync and self.is_celery:
+            self.save_delay.delay(path, original_storage_path, name, using)
+            return
+
+        if self.exists(path):
+            original_file = self.open(path) \
+                if not original_storage_path else None
+            super(MultipleStoragesMixin, self).save(name,
+                                                    original_file,
+                                                    original_storage_path,
+                                                    using)
+
+    def run_delete(self, name, not_assync=False):
+        if not not_assync and self.is_celery:
+            self.delete_delay.delay(name)
+            return
+        super(MultipleStoragesMixin, self).delete(name)
+
+
+

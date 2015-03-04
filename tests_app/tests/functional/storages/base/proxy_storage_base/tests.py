@@ -12,6 +12,7 @@ from django.core.files.base import ContentFile
 
 from proxy_storage.meta_backends.orm import ORMMetaBackend
 from proxy_storage.meta_backends.mongo import MongoMetaBackend
+from proxy_storage.meta_backends.orm import MultipleORMMetaBackend
 from proxy_storage.storages.base import ProxyStorageBase
 from proxy_storage.testutils import create_test_cases_for_proxy_storage
 
@@ -19,6 +20,7 @@ from tests_app.models import (
     ProxyStorageModel,
     ProxyStorageModelWithContentObjectField,
     ProxyStorageModelWithOriginalStorageName,
+    ProxyStorageModelMultiple,
     ProxyStorageModelWithContentObjectFieldAndOriginalStorageName
 )
 from .base_test_cases import (
@@ -56,6 +58,7 @@ test_case_bases = [
 meta_backend_instances = [
     ORMMetaBackend(model=ProxyStorageModel),
     ORMMetaBackend(model=ProxyStorageModelWithContentObjectField),
+    MultipleORMMetaBackend(model=ProxyStorageModelMultiple),
     ORMMetaBackend(model=ProxyStorageModelWithOriginalStorageName),
     ORMMetaBackend(model=ProxyStorageModelWithContentObjectFieldAndOriginalStorageName),
     MongoMetaBackend(

@@ -41,8 +41,7 @@ class MultipleORMMetaBackend(ORMMetaBackend):
         except self.model.DoesNotExist as exc:
             raise MetaBackendObjectDoesNotExist(exc)
         else:
-            return model_object.copies.values_list('path',
-                                                         flat=True).all()
+            return model_object.copies.values_list('path', flat=True).all()
 
 
 class ProxyStorageModelBase(models.Model):
@@ -85,13 +84,13 @@ class OriginalStorageNameMixin(models.Model):
         abstract = True
 
 
-class ProxyMultipleStorageModel(models.Model):
+class ProxyMultipleStorageModel(OriginalStorageNameMixin):
     path = models.CharField(max_length=250)
     proxy_storage_name = models.CharField(max_length=50)
     original_storage_path = models.CharField(max_length=350)
 
     original = models.ForeignKey('self', blank=True, related_name='copies',
-                                 null=True)
+                                 null=True, on_delete=models.SET_NULL)
 
     class Meta:
         unique_together = (('path', 'proxy_storage_name'),)
@@ -111,3 +110,4 @@ class ProxyMultipleStorageModel(models.Model):
             type(original_storage).__name__,
             self.original_storage_path
         )
+

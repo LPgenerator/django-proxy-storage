@@ -7,15 +7,12 @@ from celery.contrib.methods import task_method
 
 class CeleryMixin(object):
 
+    is_celery = True
+
     @current_app.task(name='multiple_storage.delete_delay', filter=task_method)
     def delete_delay(self, name):
-        super(CeleryMixin, self).delete(name)
+        self.run_delete(name, not_assync=True)
 
     @current_app.task(name='multiple_storage.save_delay', filter=task_method)
     def save_delay(self, path, original_storage_path, name, using):
-        if self.exists(path):
-            original_file = self.open(path)
-            super(CeleryMixin, self).save(name,
-                                          original_file,
-                                          original_storage_path,
-                                          using)
+        self.run_save(path, name, original_storage_path, using, not_assync=True)

@@ -3,6 +3,7 @@ from django.db import models
 
 from proxy_storage.meta_backends.orm import (
     ProxyStorageModelBase,
+    ProxyMultipleStorageModel,
     ContentObjectFieldMixin,
     OriginalStorageNameMixin
 )
@@ -44,3 +45,10 @@ class UnitMetaBackendsOrmProxyStorageWithOriginalStorageNameModel(OriginalStorag
     class Meta:
         app_label = 'tests_app'
         verbose_name = 'proxy storage with orig'
+
+
+class UnitMetaBackendsOrmMultipleProxyStorageModel(ProxyMultipleStorageModel):
+
+    class Meta:
+        app_label = 'tests_app'
+        verbose_name = 'multiple proxy storage model'

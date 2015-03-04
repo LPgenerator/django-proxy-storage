@@ -3,6 +3,7 @@ from proxy_storage.meta_backends.orm import (
     ProxyStorageModelBase,
     ContentObjectFieldMixin,
     OriginalStorageNameMixin,
+    ProxyMultipleStorageModel,
 )
 
 
@@ -20,6 +21,12 @@ class ProxyStorageModelWithOriginalStorageName(OriginalStorageNameMixin, ProxySt
 
     class Meta:
         verbose_name = 'Proxy storage with orig'
+
+
+class ProxyStorageModelMultiple(ProxyMultipleStorageModel):
+
+    class Meta:
+        verbose_name = 'Proxy storage multiple'
 
 
 class ProxyStorageModelWithContentObjectFieldAndOriginalStorageName(OriginalStorageNameMixin,

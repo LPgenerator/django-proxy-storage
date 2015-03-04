@@ -7,3 +7,5 @@ env
 dist
 test.db
 .vagrant
+storage_env
+

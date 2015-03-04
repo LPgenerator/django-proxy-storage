@@ -13,6 +13,7 @@ from .models import (
     UnitMetaBackendsOrmBook as Book,
     UnitMetaBackendsOrmProxyStorageWithContentObjectFieldModel as ProxyStorageWithContentObjectFieldModel,
     UnitMetaBackendsOrmProxyStorageWithOriginalStorageNameModel as ProxyStorageWithOriginalStorageNameModel,
+    UnitMetaBackendsOrmMultipleProxyStorageModel as MultipleProxyStorageModel
 )
 
 
@@ -165,6 +166,22 @@ class ProxyStorageModelBaseTest(TestCase):
         )
         expected_name = u'AnotherProxyStorageMockClass /path/file.txt => OriginalStorageMockClass /original/file.txt'
         self.assertEqual(instance.__unicode__(), expected_name)
+
+
+class MultipleProxyStorageModelBaseTest(TestCase):
+    def setUp(self):
+        self.model = MultipleProxyStorageModel
+
+    def test_should_not_raise_error_if_path_is_unique_with_diff_storages(self):
+        path = '/path/file.txt'
+        self.model.objects.create(
+            path=path,
+            proxy_storage_name='another_proxy_storage_mock'
+        )
+        self.model.objects.create(
+            path=path,
+            proxy_storage_name='another_proxy_storage_mock_2'
+        )
 
 
 class ContentObjectFieldMixinTest(TestCase):
