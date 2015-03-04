@@ -51,9 +51,15 @@ class TestSaveMixin(TestSaveMixinBase):
         related_names = self.proxy_storage.meta_backend.get_related(path=saved_file_name)
         self.assertEqual(len(related_names), len(self.proxy_storage.original_storages) - 1)
 
-        for path in related_names:
+        all_paths = list(related_names) + [saved_file_name]
+
+        for path in all_paths:
+            meta_backend_obj = self.proxy_storage.meta_backend.get(path=path)
             msg = 'should save file content to all storages'
             self.assertTrue(self.proxy_storage.exists(path), msg)
+            self.assertTrue(self.proxy_storage.get_original_storage(
+                meta_backend_obj=meta_backend_obj
+            ).exists(path))
             self.assertEqual(
                 self.proxy_storage.open(path, 'r').read(),
                 self.content

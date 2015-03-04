@@ -156,7 +156,7 @@ class ProxyStorageModelBaseTest(TestCase):
             error_msg = str(e)
         else:
             error_msg = None
-        self.assertEqual(error_msg, 'column path is not unique')
+        self.assertIn('UNIQUE', error_msg)
 
     def test_unicode(self):
         instance = self.model.objects.create(
